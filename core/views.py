@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
+from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Industry, Organization
 from .serializers import IndustrySerializer, OrganizationSerializer
 # Create your views here.
@@ -11,6 +12,10 @@ class IndustryListView(generics.ListAPIView):
 
 class OrganizationListAPIView(generics.ListAPIView):
     serializer_class = OrganizationSerializer
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['name']
+    ordering = ['name']
 
     def get_queryset(self):
         params = self.request.query_params
@@ -24,6 +29,11 @@ class OrganizationListAPIView(generics.ListAPIView):
                     "industry_id": "This query parameter is required."
                 }
             )
+        
+        if not industry_id.isdigit():
+            raise ValidationError(
+                {"industry_id": "Must be a valid integer."}
+            )
 
         queryset = Organization.objects.filter(
             industry_id=industry_id, is_active=True
@@ -33,11 +43,12 @@ class OrganizationListAPIView(generics.ListAPIView):
                                                    "address__city"
                                                    )
         
-        if area_id:
+        if area_id and area_id.isdigit():
             queryset = queryset.filter(address__area_id=area_id)
-        if city_id:
+
+        elif city_id and city_id.isdigit():
             queryset = queryset.filter(address__city_id=city_id)
-        
-        return queryset.order_by("name")
+
+        return queryset
 
         

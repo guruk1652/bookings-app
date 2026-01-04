@@ -63,7 +63,7 @@ class Address(models.Model):
 
 
 class Organization(models.Model):
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=150, db_index=True)
     industry = models.ForeignKey(
         Industry,
         on_delete=models.PROTECT,
