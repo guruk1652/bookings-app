@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import UniqueConstraint
 
 # Create your models here.
 
@@ -61,6 +62,12 @@ class Address(models.Model):
         blank=True
     )
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["area"]),
+            models.Index(fields=["city"]),
+        ]
+
 
 class Organization(models.Model):
     name = models.CharField(max_length=150, db_index=True)
@@ -77,7 +84,18 @@ class Organization(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ("name", "industry")
+        indexes = [
+            models.Index(fields=["industry", "is_active"])
+        ]
+
+        constraints = [
+            # Replaces unique_together
+            UniqueConstraint(
+                fields=['name', 'industry'], 
+                name='unique_org_name_per_industry'
+            )
+        ]
+
 
     def __str__(self):
         return self.name
