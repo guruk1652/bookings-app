@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.shortcuts import render
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
@@ -6,8 +7,18 @@ from .models import Industry, Organization
 from .serializers import IndustrySerializer, OrganizationSerializer
 # Create your views here.
 class IndustryListView(generics.ListAPIView):
-    queryset = Industry.objects.filter(is_standard=True)
+    # queryset = Industry.objects.filter(is_standard=True)
     serializer_class = IndustrySerializer
+
+    def get_queryset(self):
+        cache_key = "industries:list"
+        industries = cache.get(cache_key)
+
+        if industries is None:
+            industries = Industry.objects.filter(is_standard=True).order_by("name")
+            cache.set(cache_key, industries, timeout= 60 * 60 * 24)
+        
+        return industries
 
 
 class OrganizationListAPIView(generics.ListAPIView):
@@ -34,6 +45,20 @@ class OrganizationListAPIView(generics.ListAPIView):
             raise ValidationError(
                 {"industry_id": "Must be a valid integer."}
             )
+        
+        cache_key = (
+            f"orgs:"
+            f"industry={industry_id}:"
+            f"area={params.get('area_id')}:"
+            f"city={params.get('city_id')}:"
+            f"search={params.get('search')}:"
+            f"ordering={params.get('ordering')}"
+        )
+
+        queryset = cache.get(cache_key)
+
+        if queryset is not None:
+            return queryset
 
         queryset = Organization.objects.filter(
             industry_id=industry_id, is_active=True
@@ -48,6 +73,10 @@ class OrganizationListAPIView(generics.ListAPIView):
 
         elif city_id and city_id.isdigit():
             queryset = queryset.filter(address__city_id=city_id)
+        
+        queryset = queryset.order_by("name")
+        
+        cache.set(cache_key, queryset, timeout= 60 * 5)
 
         return queryset
 
